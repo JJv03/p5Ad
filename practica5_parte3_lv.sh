@@ -4,15 +4,10 @@
 
 while IFS=',' read nombreGrupoVolumen nombreVolumenLogico tamanyo tipoSistemaFicheros directorioMontaje
 do
-    #-C indica que los datos generados por el comando lvdisplay salgan en forma de tabla (Columnas)
-    #-o especifica que solo se muestren los datos de la columna "lv_path"
-    logVolDir = $(lvdisplay "$nombreGrupoVolumen/$nombreVolumenLogico" -Co "lv_path" | 
-    #Filtramos para que solo se vean los que hagan referencia a ese LV en concreto
-    grep "$nombreGrupoVolumen/$nombreVolumenLogico" | 
-    #Utilizamos el comando tr con -d para eliminar aquellos caracteres iguales a un espacio (" ")
-    tr -d '[[:space:]]') &> /dev/null #Evitamos mostrar salidas o errores
+    logVolDir=$(echo "/dev/$nombreGrupoVolumen/$nombreVolumenLogico")
+    lvdisplay | grep ""$logVolDir"" &> /dev/null
     #La dirección existe, es no nula, es decir, ya existe
-    if [ -n "&logVolDir" ]; then
+    if [ $? -eq 0 ]; then
         echo "El volumen lógico que ha introducido ya existe, procedemos a ampliarlo."
         #-L indica el tamaño que se quiere asignar al LV
         lvextend -L $tamanyo $logVolDir
@@ -29,16 +24,10 @@ do
                 #-p indica que cree cualquier directorio padre necesario para generar la ruta proporcionada
                 mkdir -p $directorioMontaje
             fi
-            logVolDir = $(lvdisplay "$nombreGrupoVolumen/$nombreVolumenLogico" -Co "lv_path" | 
-            grep "$nombreGrupoVolumen/$nombreVolumenLogico" | 
-            tr -d '[[:space:]]')
-            #Añadimos el LVal fichero /etc/fstab
-            echo -e "$logVolDir\t$directorioMontaje\t$tipoSistemaFicheros\tdefaults 0 0" >> /etc/fstab
-            #Formateamos el LV
-            mkfs.$tipoSistemaFicheros $logVolDir
+            echo -e "$logVolDir\t$directorioMontaje\t$tipoSistemaFicheros\tdefaults 0 0" >> /etc/fstab#Formateamos el LV
+            mkfs -t $tipoSistemaFicheros $logVolDir
             #Montamos de nuevo el LV
-            mount $logVolDir $directorioMontaje
+            mount -t $tipoSistemaFicheros $logVolDir $directorioMontaje
         fi
     fi
-    break #No lo tengo tan claro...
-done
+done < $1
